@@ -24,6 +24,11 @@ class MirrorInstagramCoversTests(unittest.TestCase):
             mirror.atomic_json_write(path, {"schema_version": 1, "covers": {"42": {"url": "https://example.test/a.jpg"}}})
             self.assertEqual(mirror.load_manifest(path)["covers"]["42"]["url"], "https://example.test/a.jpg")
 
+    def test_workflow_commits_new_untracked_covers(self):
+        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "mirror-instagram-covers.yml").read_text(encoding="utf-8")
+        self.assertIn("git status --porcelain -- instagram-covers", workflow)
+        self.assertNotIn("git diff --quiet -- instagram-covers", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

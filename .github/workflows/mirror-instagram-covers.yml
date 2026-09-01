@@ -51,7 +51,7 @@ jobs:
 
       - name: Commit changed covers and manifest
         run: |
-          if git diff --quiet -- instagram-covers; then
+          if [[ -z "$(git status --porcelain -- instagram-covers)" ]]; then
             echo 'No cover changes.'
             exit 0
           fi
