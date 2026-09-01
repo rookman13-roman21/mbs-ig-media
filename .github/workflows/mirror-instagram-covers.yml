@@ -1,0 +1,62 @@
+name: Mirror Instagram covers
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Mirror scope
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - recent
+          - full
+      limit:
+        description: Maximum media for smoke or recent mode
+        required: true
+        default: '1'
+        type: string
+  schedule:
+    - cron: '17 * * * *'
+
+# This workflow deliberately has no pull_request, pull_request_target, or
+# repository_dispatch trigger: its Meta credential must only run on trusted
+# main-branch code or a manually started workflow.
+permissions:
+  contents: write
+
+concurrency:
+  group: mirror-instagram-covers
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MBS_META_ACCESS_TOKEN: ${{ secrets.MBS_META_ACCESS_TOKEN }}
+      MBS_META_IG_ACCOUNT_ID: '17841402017107494'
+      MBS_META_API_VERSION: v23.0
+      MBS_MEDIA_REPO: rookman13-roman21/mbs-ig-media
+      MIRROR_MODE: ${{ github.event_name == 'schedule' && 'recent' || inputs.mode || 'smoke' }}
+      MIRROR_LIMIT: ${{ github.event_name == 'schedule' && '40' || inputs.limit || '1' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Mirror covers from Meta Graph
+        run: python3 scripts/mirror_instagram_covers.py --mode "$MIRROR_MODE" --limit "$MIRROR_LIMIT"
+
+      - name: Commit changed covers and manifest
+        run: |
+          if git diff --quiet -- instagram-covers; then
+            echo 'No cover changes.'
+            exit 0
+          fi
+          git config user.name 'mbs-ig-media[bot]'
+          git config user.email '206052952+mbs-ig-media[bot]@users.noreply.github.com'
+          git add instagram-covers
+          git commit -m "Mirror Instagram covers"
+          git push origin HEAD:main
